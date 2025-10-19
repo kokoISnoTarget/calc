@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use logos::Logos;
 use rug::{Float, ops::CompleteRound};
 
@@ -10,13 +12,13 @@ pub enum Token {
     Number(Float),
 
     #[token("+")]
-    Add,
+    Plus,
     #[token("-")]
-    Sub,
+    Minus,
     #[token("*")]
-    Mul,
+    Star,
     #[token("/")]
-    Div,
+    Slash,
 
     #[token("**")]
     Pow,
@@ -31,15 +33,50 @@ pub enum Token {
     RightParen,
 
     // Constants
-    #[token("pi")]
+    #[regex(r"[a-zA-Z]+", |lex| Identifier::from_str(lex.slice()))]
+    Identifier(Identifier),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Identifier {
+    Constant(Constant),
+    Function(Function),
+}
+
+impl FromStr for Identifier {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "pi" => Ok(Identifier::Constant(Constant::Pi)),
+            "e" => Ok(Identifier::Constant(Constant::E)),
+            "tau" => Ok(Identifier::Constant(Constant::Tau)),
+            "inf" => Ok(Identifier::Constant(Constant::Inf)),
+            "nan" => Ok(Identifier::Constant(Constant::Nan)),
+            "sin" => Ok(Identifier::Function(Function::Sin)),
+            "cos" => Ok(Identifier::Function(Function::Cos)),
+            "tan" => Ok(Identifier::Function(Function::Tan)),
+            "exp" => Ok(Identifier::Function(Function::Exp)),
+            "sqrt" => Ok(Identifier::Function(Function::Sqrt)),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Logos, Clone, Debug, PartialEq)]
+pub enum Constant {
     Pi,
-    #[token("e")]
     E,
-    #[token("tau")]
     Tau,
-    #[token("inf")]
     Inf,
-    #[token("nan")]
     Nan,
-    // functions
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Function {
+    Sin,
+    Cos,
+    Tan,
+    Exp,
+    Sqrt,
 }

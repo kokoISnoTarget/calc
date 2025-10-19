@@ -3,7 +3,10 @@ use rug::{
     ops::{CompleteRound, Pow},
 };
 
-use crate::parse::{Ast, BinaryOperation, UnaryOperation};
+use crate::{
+    parse::{Ast, BinaryOperation, UnaryOperation},
+    token::{Constant, Function},
+};
 
 pub fn eval(ast: Ast) -> Result<Float, ()> {
     match ast {
@@ -24,5 +27,22 @@ pub fn eval(ast: Ast) -> Result<Float, ()> {
             Ok(Float::factorial(out).complete(64))
         }
         Ast::Paren(ast) => eval(*ast),
+        Ast::Constant(constant) => match constant {
+            Constant::Pi => Ok(Float::with_val(64, rug::float::Constant::Pi)),
+            Constant::Inf => Ok(Float::with_val(64, rug::float::Special::Infinity)),
+            Constant::Nan => Ok(Float::with_val(64, rug::float::Special::Nan)),
+            _ => Err(()),
+        },
+        Ast::Function(function, ast) => {
+            let ast = eval(*ast)?;
+
+            match function {
+                Function::Sin => Ok(ast.sin()),
+                Function::Cos => Ok(ast.cos()),
+                Function::Tan => Ok(ast.tan()),
+                Function::Exp => Ok(ast.exp()),
+                Function::Sqrt => Ok(ast.sqrt()),
+            }
+        }
     }
 }

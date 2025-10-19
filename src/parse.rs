@@ -5,17 +5,16 @@ use chumsky::{
     pratt::{prefix, right},
     prelude::{recursive, *},
 };
-use rug::{
-    Float,
-    float::{Constant, Special},
-};
+use rug::Float;
 
-use crate::token::Token;
+use crate::token::{Constant, Function, Identifier, Token};
 
 pub enum Ast {
     Number(Float),
+    Constant(Constant),
     BinOp(BinaryOperation, Box<Ast>, Box<Ast>),
     UnaryOp(UnaryOperation, Box<Ast>),
+    Function(Function, Box<Ast>),
     Paren(Box<Ast>),
 }
 
@@ -43,9 +42,9 @@ where
     recursive(|expr| {
         let num = select! {
             Token::Number(num) => Ast::Number(num),
-            Token::Pi => Ast::Number(Float::with_val(64, Constant::Pi)),
-            Token::Inf => Ast::Number(Float::with_val(64, Special::Infinity)),
-            Token::Nan => Ast::Number(Float::with_val(64, Special::Nan)),
+            Token::Identifier(Identifier::Constant(Constant::Pi)) => Ast::Constant(Constant::Pi),
+            Token::Identifier(Identifier::Constant(Constant::Inf)) => Ast::Constant(Constant::Inf),
+            Token::Identifier(Identifier::Constant(Constant::Nan)) => Ast::Constant(Constant::Nan),
         };
 
         let paren = expr
@@ -53,14 +52,25 @@ where
             .delimited_by(just(Token::LeftParen), just(Token::RightParen))
             .map(|e| Ast::Paren(Box::new(e)));
 
-        let atom = num.or(paren);
+        let function_name = select! {
+            Token::Identifier(Identifier::Function(name)) => name,
+        };
+
+        let function = function_name
+            .then(
+                expr.clone()
+                    .delimited_by(just(Token::LeftParen), just(Token::RightParen)),
+            )
+            .map(|(name, args)| Ast::Function(name, Box::new(args)));
+
+        let atom = num.or(paren).or(function);
 
         atom.pratt((
             // Prefix unary operators
-            prefix(3, just(Token::Add), |_, x, _| {
+            prefix(3, just(Token::Plus), |_, x, _| {
                 Ast::UnaryOp(UnaryOperation::Positive, Box::new(x))
             }),
-            prefix(3, just(Token::Sub), |_, x, _| {
+            prefix(3, just(Token::Minus), |_, x, _| {
                 Ast::UnaryOp(UnaryOperation::Negative, Box::new(x))
             }),
             // Postfix unary operator: factorial
@@ -71,19 +81,19 @@ where
             infix(right(5), just(Token::Pow), |x, _, y, _| {
                 Ast::BinOp(BinaryOperation::Pow, Box::new(x), Box::new(y))
             }),
-            infix(left(2), just(Token::Mul), |x, _, y, _| {
+            infix(left(2), just(Token::Star), |x, _, y, _| {
                 Ast::BinOp(BinaryOperation::Mul, Box::new(x), Box::new(y))
             }),
-            infix(left(2), just(Token::Div), |x, _, y, _| {
+            infix(left(2), just(Token::Slash), |x, _, y, _| {
                 Ast::BinOp(BinaryOperation::Div, Box::new(x), Box::new(y))
             }),
             infix(left(2), just(Token::Mod), |x, _, y, _| {
                 Ast::BinOp(BinaryOperation::Mod, Box::new(x), Box::new(y))
             }),
-            infix(left(2), just(Token::Add), |x, _, y, _| {
+            infix(left(2), just(Token::Plus), |x, _, y, _| {
                 Ast::BinOp(BinaryOperation::Add, Box::new(x), Box::new(y))
             }),
-            infix(left(1), just(Token::Sub), |x, _, y, _| {
+            infix(left(1), just(Token::Minus), |x, _, y, _| {
                 Ast::BinOp(BinaryOperation::Sub, Box::new(x), Box::new(y))
             }),
         ))
