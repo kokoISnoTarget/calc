@@ -1,0 +1,11 @@
+[package]
+name = "calc"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+chumsky = { version = "0.11.1", features = ["pratt"] }
+clap = { version = "4.5.49", features = ["derive"] }
+logos = "0.15.1"
+rug = "1.28.0"
